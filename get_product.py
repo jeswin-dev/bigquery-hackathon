@@ -90,7 +90,6 @@ def _extract_text_from_possible_json(s: str) -> str:
     if s is None:
         return ""
     t = s.strip()
-    # JSON-encoded string case: "..." or '...'
     if (t.startswith('"') and t.endswith('"')) or (t.startswith("'") and t.endswith("'")):
         try:
             loaded = json.loads(t)
@@ -98,21 +97,16 @@ def _extract_text_from_possible_json(s: str) -> str:
                 return loaded
         except Exception:
             pass
-    # JSON object/array case
     if t.startswith('{') or t.startswith('['):
         try:
             obj = json.loads(t)
-            # If it's a direct string
             if isinstance(obj, str):
                 return obj
-            # If it's the Gemini-like response shape
             if isinstance(obj, dict):
-                # Simple text fields on root
                 for key in ("ml_generate_text_result", "text", "content", "output_text", "result"):
                     val = obj.get(key)
                     if isinstance(val, str):
                         return val
-                # Candidates list
                 candidates = obj.get("candidates")
                 if isinstance(candidates, list) and candidates:
                     texts: list[str] = []
@@ -134,14 +128,12 @@ def _extract_text_from_possible_json(s: str) -> str:
                                         pt = part.get("text")
                                         if isinstance(pt, str):
                                             texts.append(pt)
-                        # Fallback other fields
                         for alt in ("ml_generate_text_result",):
                             aval = cand.get(alt)
                             if isinstance(aval, str):
                                 texts.append(aval)
                     if texts:
                         return "\n".join(texts)
-            # List of strings or dicts
             if isinstance(obj, list) and obj:
                 first = obj[0]
                 if isinstance(first, str):
@@ -153,7 +145,6 @@ def _extract_text_from_possible_json(s: str) -> str:
                             return val
         except Exception:
             pass
-    # Return original string if nothing matched
     return s
 
 
@@ -204,7 +195,6 @@ def fetch_selected_product(
     found_products = row.get("found_products")
     selected_text = row.get("selected_product")
 
-    # Normalize to plain text if JSON-encoded
     selected_text = _extract_text_from_possible_json(selected_text or "")
 
     selected_id = parse_selected_product_id(selected_text or "")
